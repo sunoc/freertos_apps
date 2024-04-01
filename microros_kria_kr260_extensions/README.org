@@ -30,7 +30,7 @@ ros2 run micro_ros_setup create_firmware_ws.sh freertos kria_kr260
 
 No need to configure the transport: this build will use OpenAMP RPMsg for intra-chip communication.
 #+BEGIN_SRC sh
-ros2 run micro_ros_setup configure_firmware.sh ping_pong
+ros2 run micro_ros_setup configure_firmware.sh ping_pong --transport rpmsg
 #+END_SRC
 
 #+BEGIN_SRC sh
