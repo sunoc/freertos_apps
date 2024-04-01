@@ -10,10 +10,11 @@ Supported hardware platforms are:
 * ST Nucleo F446ZE (community supported)
 * ST Nucleo F746ZG (community supported)
 * ESP32
+* Xilinx KRIA KR260 (community supported)
 
 ## Usage
 
-These applications are integrated within the [micro-ROS build system](https://github.com/micro-ROS/micro_ros_setup).
+These applications are integrated within the [micro-ROS build system](https://github.com/sunoc/micro_ros_setup).
 Please refer to this repository's documentation for further information about how to configure, build and flash them.
 
 ## Purpose of the Project
