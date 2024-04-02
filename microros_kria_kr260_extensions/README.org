@@ -1,8 +1,9 @@
 #+title: KRIA KR260 Micro-ROS Example Extension
+#+auto_tangle: t
 
 WIP
 
-
+* Using the ~micro_ros_setup~ to build the firmware
 #+BEGIN_SRC sh
 # Source the ROS 2 installation
 source /opt/ros/$ROS_DISTRO/setup.bash
@@ -35,4 +36,73 @@ ros2 run micro_ros_setup configure_firmware.sh ping_pong --transport rpmsg
 
 #+BEGIN_SRC sh
 ros2 run micro_ros_setup build_firmware.sh
+#+END_SRC
+
+* Makefile
+The Makefile for this project is tangled from the following source blocks.
+The editing should be made from this README, not in the Makefile itself.
+
+** Header
+#+BEGIN_SRC makefile :tangle Makefile
+################################################################################
+#
+# File tangled from the README.
+#
+################################################################################
+#+END_SRC
+
+** Target
+This is the the final name for the ~*.elf~ binary.
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+TARGET = micro-ROS
+#+END_SRC
+
+** Utils
+Aliases for usefull tools
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+RM := rm -rf
+#+END_SRC
+
+** paths
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+SUBDIRS := src
+#+END_SRC
+
+** sources
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+LD_SRCS += ../src/lscript.ld
+#+END_SRC
+
+** All
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+all: $(TARGET).elf
+#+END_SRC
+
+** libmicroros
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+libmicroros: colcon_compile
+	mkdir -p $(UROS_DIR)/libmicroros; cd $(UROS_DIR)/libmicroros; \
+	for file in $$(find $(UROS_DIR)/install/ -name '*.a'); do \
+		folder=$$(echo $$file | sed -E "s/(.+)\/(.+).a/\2/"); \
+		mkdir -p $$folder; cd $$folder; ar x $$file; \
+		for f in *; do \
+			mv $$f ../$$folder-$$f; \
+		done; \
+		cd ..; rm -rf $$folder; \
+	done ; \
+	ar rc libmicroros.a *.obj; mkdir -p $(BUILD_DIR); cp libmicroros.a $(BUILD_DIR); ranlib $(BUILD_DIR)/libmicroros.a; \
+	cd ..; rm -rf libmicroros;
+#+END_SRC
+
+
+** Clean
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+clean:
+	-$(RM) $(TARGET).elf
+#+END_SRC
+
+** .PHONY
+Recap of all the available option for the Makefile
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+.PHONY: all clean
 #+END_SRC
