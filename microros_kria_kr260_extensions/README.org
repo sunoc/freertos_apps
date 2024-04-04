@@ -38,6 +38,31 @@ ros2 run micro_ros_setup configure_firmware.sh ping_pong --transport rpmsg
 ros2 run micro_ros_setup build_firmware.sh
 #+END_SRC
 
+* ARM Toolchain
+
+#+BEGIN_SRC cmake :tangle arm_toolchain.cmake.in
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_CROSSCOMPILING 1)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+set(CMAKE_INSTALL_LIBDIR /usr/)
+set(PLATFORM_NAME "LwIP")
+
+
+set(ARCH_CPU_FLAGS "-mcpu=cortex-r5 -mthumb -mfpu=vfpv3-d16 -mfloat-abi=hard -DARMR5 -O2 -Wall -fdata-sections -ffunction-sections -fno-tree-loop-distribute-patterns -Wno-unused-parameter -Wno-unused-value -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wl,--gc-sections" CACHE STRING "" FORCE)
+set(ARCH_OPT_FLAGS "")
+
+set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+
+set(CMAKE_C_FLAGS_INIT "-std=c11 ${ARCH_CPU_FLAGS} ${ARCH_OPT_FLAGS} -DCLOCK_MONOTONIC=0" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_INIT "-std=c++14 ${ARCH_CPU_FLAGS} ${ARCH_OPT_FLAGS} -DCLOCK_MONOTONIC=0" CACHE STRING "" FORCE)
+
+
+
+set(__BIG_ENDIAN__ 0)
+#+END_SRC
+
+
 * Makefile
 The Makefile for this project is tangled from the following source blocks.
 The editing should be made from this README, not in the Makefile itself.
@@ -46,24 +71,30 @@ The editing should be made from this README, not in the Makefile itself.
 #+BEGIN_SRC makefile :tangle Makefile
 ################################################################################
 #
+# Makefile meant to build a demonstration application for micro-ROS on KR260
 # File tangled from the README.
+#
+# Vincent Conus, 2024-04-04
 #
 ################################################################################
 #+END_SRC
 
-** Target
+** Target, utils, paths
 This is the the final name for the ~*.elf~ binary.
 #+BEGIN_SRC makefile :tangle Makefile :comments org
-TARGET = micro-ROS
+TARGET = micro-ROS_Client_Firmware
 #+END_SRC
 
-** Utils
 Aliases for usefull tools
 #+BEGIN_SRC makefile :tangle Makefile :comments org
 RM := rm -rf
 #+END_SRC
 
-** paths
+An output file should also exsist to monitor the size of the build elf binary.
+#+BEGIN_SRC makefile
+ELFSIZE += $(TARGET).elf.size
+#+END_SRC
+
 #+BEGIN_SRC makefile :tangle Makefile :comments org
 SUBDIRS := src
 #+END_SRC
@@ -78,9 +109,42 @@ LD_SRCS += ../src/lscript.ld
 all: $(TARGET).elf
 #+END_SRC
 
-** libmicroros
+** Building the micro-ROS static library
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+arm_toolchain: $(EXTENSIONS_DIR)/arm_toolchain.cmake.in
+	@echo 'Preparing the cmake file'
+	rm -f $(EXTENSIONS_DIR)/arm_toolchain.cmake; \
+	cat $(EXTENSIONS_DIR)/arm_toolchain.cmake.in | \
+		sed "s/@CROSS_COMPILE@/$(subst /,\/,$(CROSS_COMPILE))/g" | \
+		sed "s/@FREERTOS_TOPDIR@/$(subst /,\/,$(TOPFOLDER))/g" | \
+		sed "s/@ARCH_CPU_FLAGS@/\"$(ARCHCPUFLAGS)\"/g" | \
+		sed "s/@ARCH_OPT_FLAGS@/\"$(ARCHOPTIMIZATION)\"/g" \
+		> $(EXTENSIONS_DIR)/arm_toolchain.cmake
+	@echo ' '
+#+END_SRC
+
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+colcon_compile: arm_toolchain
+	@echo 'Building the with colcon'
+	cd $(UROS_DIR); \
+	colcon build \
+		--packages-ignore-regex=.*_cpp \
+		--metas $(UROS_DIR)/colcon.meta $(UROS_APP_FOLDER)/app-colcon.meta \
+		--cmake-args \
+		"--no-warn-unused-cli" \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=OFF \
+		-DTHIRDPARTY=ON \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DBUILD_TESTING=OFF \
+		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+		-DCMAKE_TOOLCHAIN_FILE=$(EXTENSIONS_DIR)/arm_toolchain.cmake \
+		-DCMAKE_VERBOSE_MAKEFILE=ON;
+	@echo ' '
+#+END_SRC
+
 #+BEGIN_SRC makefile :tangle Makefile :comments org
 libmicroros: colcon_compile
+	@echo 'Make the built libmicroros available'
 	mkdir -p $(UROS_DIR)/libmicroros; cd $(UROS_DIR)/libmicroros; \
 	for file in $$(find $(UROS_DIR)/install/ -name '*.a'); do \
 		folder=$$(echo $$file | sed -E "s/(.+)\/(.+).a/\2/"); \
@@ -92,17 +156,44 @@ libmicroros: colcon_compile
 	done ; \
 	ar rc libmicroros.a *.obj; mkdir -p $(BUILD_DIR); cp libmicroros.a $(BUILD_DIR); ranlib $(BUILD_DIR)/libmicroros.a; \
 	cd ..; rm -rf libmicroros;
+	@echo ' '
 #+END_SRC
 
-
-** Clean
+** Building the application
 #+BEGIN_SRC makefile :tangle Makefile :comments org
-clean:
-	-$(RM) $(TARGET).elf
+all: $(TARGET).elf
 #+END_SRC
 
-** .PHONY
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+$(TARGET).elf: $(OBJS) ../src/lscript.ld $(USER_OBJS)
+	@echo 'Building target: $@'
+	@echo 'Invoking: ARM R5 gcc linker'
+	armr5-none-eabi-gcc -s -L../microros_lib -mcpu=cortex-r5  -mthumb -mfloat-abi=hard  -mfpu=vfpv3-d16 -Wl,-T -Wl,../src/lscript.ld -L../freertos_libs -o "rpmsg_pingpong_microros_lib.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	@echo 'Finished building target: $@'
+	@echo ' '
+#+END_SRC
+
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+$(ELFSIZE): $(TARGET).elf
+	@echo 'Invoking: ARM R5 Print Size'
+	armr5-none-eabi-size -x rpmsg_pingpong_microros_lib.elf  | tee "rpmsg_pingpong_microros_lib.elf.size"
+	@echo 'Finished building: $@'
+	@echo ' '
+#+END_SRC
+
+As a second build artifact, the elf size file shall be created too.
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+secondary-outputs: $(ELFSIZE)
+#+END_SRC
+
 Recap of all the available option for the Makefile
 #+BEGIN_SRC makefile :tangle Makefile :comments org
-.PHONY: all clean
+.PHONY: all clean dependents
+#+END_SRC
+
+** Clean up
+#+BEGIN_SRC makefile :tangle Makefile :comments org
+clean:
+	-$(RM) $(TARGET).elf $(ELFSIZE)
+	-@echo ' '
 #+END_SRC
