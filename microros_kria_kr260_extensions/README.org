@@ -161,10 +161,6 @@ libmicroros: colcon_compile
 
 ** Building the application
 #+BEGIN_SRC makefile :tangle Makefile :comments org
-all: $(TARGET).elf
-#+END_SRC
-
-#+BEGIN_SRC makefile :tangle Makefile :comments org
 $(TARGET).elf: $(OBJS) ../src/lscript.ld $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM R5 gcc linker'
@@ -186,9 +182,10 @@ As a second build artifact, the elf size file shall be created too.
 secondary-outputs: $(ELFSIZE)
 #+END_SRC
 
-Recap of all the available option for the Makefile
+Recap of all the available option for the Makefile, and protecting them
+from being replaced by a file in the build dir.
 #+BEGIN_SRC makefile :tangle Makefile :comments org
-.PHONY: all clean dependents
+.PHONY: all clean dependents libmicroros
 #+END_SRC
 
 ** Clean up

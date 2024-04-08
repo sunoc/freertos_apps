@@ -75,8 +75,6 @@ libmicroros: colcon_compile
 
 # Building the application
 
-all: $(TARGET).elf
-
 $(TARGET).elf: $(OBJS) ../src/lscript.ld $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM R5 gcc linker'
@@ -98,9 +96,10 @@ secondary-outputs: $(ELFSIZE)
 
 
 
-# Recap of all the available option for the Makefile
+# Recap of all the available option for the Makefile, and protecting them
+# from being replaced by a file in the build dir.
 
-.PHONY: all clean dependents
+.PHONY: all clean dependents libmicroros
 
 # Clean up
 
