@@ -1,0 +1,4 @@
+[submodule "microros_kria_kr260_extensions/kria-rpmsg-base"]
+	path = microros_kria_kr260_extensions/kria-rpmsg-base
+	url = https://gitlab.com/sunoc/kria-rpmsg-base
+	branch = develop
