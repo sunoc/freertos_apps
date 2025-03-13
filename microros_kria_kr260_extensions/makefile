@@ -7,10 +7,10 @@
 #
 ################################################################################
 
-# Target, utils, paths
-# This is the the final name for the ~*.elf~ binary.
-
-TARGET = micro-ROS_Client_Firmware
+#-------------------------------------------------------------------------------
+#  Target
+#-------------------------------------------------------------------------------
+TARGET = micro-ROS
 
 
 
@@ -28,8 +28,9 @@ LD_SRCS += ../src/lscript.ld
 
 all: $(TARGET).elf
 
-# Building the micro-ROS static library
-
+#-------------------------------------------------------------------------------
+#  Building micro-ROS
+#-------------------------------------------------------------------------------
 arm_toolchain: $(EXTENSIONS_DIR)/arm_toolchain.cmake.in
 	@echo 'Preparing the cmake file'
 	rm -f $(EXTENSIONS_DIR)/arm_toolchain.cmake; \
@@ -73,8 +74,9 @@ libmicroros: colcon_compile
 	cd ..; rm -rf libmicroros;
 	@echo ' '
 
-# Building the application
-
+#-------------------------------------------------------------------------------
+#  Building the application
+#-------------------------------------------------------------------------------
 $(TARGET).elf: $(OBJS) ../src/lscript.ld $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM R5 gcc linker'
@@ -94,15 +96,9 @@ $(ELFSIZE): $(TARGET).elf
 
 secondary-outputs: $(ELFSIZE)
 
-
-
-# Recap of all the available option for the Makefile, and protecting them
-# from being replaced by a file in the build dir.
-
-.PHONY: all clean dependents libmicroros
-
-# Clean up
-
+#-------------------------------------------------------------------------------
+#  Clean up
+#-------------------------------------------------------------------------------
 clean:
 	-$(RM) $(TARGET).elf $(ELFSIZE)
 	-@echo ' '
